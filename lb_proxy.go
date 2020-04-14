@@ -7,7 +7,7 @@ package lb_proxy
 import (
 	"errors"
 	"fmt"
-	"github.com/creack/lb_proxy/clusterregistry"
+	"github.com/HanJaeseung/LoadBalancing/clusterregistry"
 	"log"
 	//"math/rand"
 	"net"
@@ -17,7 +17,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/creack/lb_proxy/ingressregistry"
+	"github.com/HanJaeseung/LoadBalancing/ingressregistry"
 
 	"github.com/oschwald/geoip2-golang"
 	"github.com/umahmood/haversine"
