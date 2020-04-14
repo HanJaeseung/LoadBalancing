@@ -7,7 +7,7 @@ package goproxy
 import (
 	"errors"
 	"fmt"
-	"github.com/HanJaeseung/LoadBalancing/cluster"
+	"github.com/HanJaeseung/LoadBalancing/clusterregistry"
 	"log"
 	//"math/rand"
 	"net"
@@ -17,7 +17,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/HanJaeseung/LoadBalancing/registry"
+	"github.com/HanJaeseung/LoadBalancing/ingressregistry"
 
 	"github.com/oschwald/geoip2-golang"
 	"github.com/umahmood/haversine"
