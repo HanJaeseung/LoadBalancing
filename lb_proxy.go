@@ -2,12 +2,12 @@
 //
 // ExtractNameVersion and LoadBalance can be overridden in order to customize
 // the behavior.
-package goproxy
+package lb_proxy
 
 import (
 	"errors"
 	"fmt"
-	"github.com/HanJaeseung/LoadBalancing/clusterregistry"
+	"github.com/creack/lb_proxy/clusterregistry"
 	"log"
 	//"math/rand"
 	"net"
@@ -17,7 +17,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/HanJaeseung/LoadBalancing/ingressregistry"
+	"github.com/creack/lb_proxy/ingressregistry"
 
 	"github.com/oschwald/geoip2-golang"
 	"github.com/umahmood/haversine"
@@ -92,7 +92,7 @@ func calcDistance(tlat, tlon, clat, clon float64) float64 {
 }
 
 
-func distanceScore(clusters []string, tcountry string, tlat, tlon float64, creg cluster.Registry) map[string]float64 {
+func distanceScore(clusters []string, tcountry string, tlat, tlon float64, creg clusterregistry.Registry) map[string]float64 {
 	score := map[string]float64{}
 
 	var policyDistance = []float64{10.0, 100.0, 1000.0, 1000000}
@@ -116,7 +116,7 @@ func distanceScore(clusters []string, tcountry string, tlat, tlon float64, creg 
 	return score
 }
 
-func resourceScore(clusters []string, creg cluster.Registry) map[string]float64 {
+func resourceScore(clusters []string, creg clusterregistry.Registry) map[string]float64 {
 	score := map[string]float64{}
 	for _, cluster := range clusters {
 		cScore,_ := creg.ResourceScore(cluster)
@@ -125,7 +125,7 @@ func resourceScore(clusters []string, creg cluster.Registry) map[string]float64 
 	return score
 }
 
-func scoring(clusters []string, tcountry string, tlat, tlon float64, creg cluster.Registry) string {
+func scoring(clusters []string, tcountry string, tlat, tlon float64, creg clusterregistry.Registry) string {
 
 	if len(clusters) == 1 {
 		endpoint,_ := creg.IngressIP(clusters[0])
@@ -169,7 +169,7 @@ func selectCluster(dscore map[string]float64, rscore map[string]float64) string 
 }
 
 
-func loadBalance(host, tip, network, servicePath string, reg registry.Registry, creg cluster.Registry) (net.Conn, error) {
+func loadBalance(host, tip, network, servicePath string, reg ingressregistry.Registry, creg clusterregistry.Registry) (net.Conn, error) {
 	fmt.Println("LoadBalance")
 
 	endpoints, err := reg.Lookup(host, servicePath)
@@ -218,7 +218,7 @@ func loadBalance(host, tip, network, servicePath string, reg registry.Registry, 
 }
 
 
-func NewMultipleHostReverseProxy(reg registry.Registry, creg cluster.Registry) http.HandlerFunc {
+func NewMultipleHostReverseProxy(reg ingressregistry.Registry, creg clusterregistry.Registry) http.HandlerFunc {
 	fmt.Println("NewMultipleHostReversProxy")
 
 	return func(w http.ResponseWriter, req *http.Request) {
