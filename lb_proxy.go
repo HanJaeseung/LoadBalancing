@@ -28,7 +28,7 @@ var LoadBalance = loadBalance
 var ExtractIP = extractIP
 
 
-func extractPath(target *url.URL) (out_path string, err error) {
+func extractPath(target *url.URL) (string, error) {
 	fmt.Println("----Extract Path----")
 	path := target.Path
 	if len(path) > 1 && path[0] == '/' {
@@ -38,13 +38,15 @@ func extractPath(target *url.URL) (out_path string, err error) {
 		return "", fmt.Errorf("Invalid path")
 	}
 	out_path = path
+	fmt.Println("Path : " + path)
 	return path, nil
 }
 
-func extractIP(target string) (out_ip string, err error) {
+func extractIP(target string) (string, error) {
 	fmt.Println("----Extract IP----")
 	tmp := strings.Split(target, ":")
 	ip, _ := tmp[0], tmp[1]
+	fmt.Println("IP : " + ip)
 	return ip, nil
 }
 
@@ -107,7 +109,6 @@ func distanceScore(clusters []string, tcountry string, tlat, tlon float64, creg 
 			}
 		}
 	}
-
 	return score
 }
 
