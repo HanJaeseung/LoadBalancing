@@ -7,30 +7,12 @@ import (
 	"sync"
 )
 
-
-
-// DefaultClusterInfo is a basic registry using the following format:
-//{
-//	"cluster1" : {
-//		"Latitude" : "10.32" ,
-//		"Longitude" : " 20.44",
-//		"IngressIP" : "10.0.3.203",
-//		"Country" : "US",
-//		"Continent" : "Asia",
-//		"ResourceScore" : "80",
-//	},
-//}
-
-
-
 var lock sync.RWMutex
 
-// Common errors.
 var (
 	ErrClusterNotFound = errors.New("Cluster not found")
 )
 
-// for a given service name / version pair.
 type Registry interface {
 	Add(ClusterName , Latitude, Longitude, IngressIP, Country, Continent, ResourceScore string)                // Add an endpoint to our registry
 	Longitude(ClusterName string) (float64, error)
@@ -39,16 +21,13 @@ type Registry interface {
 	Country(ClusterName string) (string, error)
 	Continent(ClusterName string) (string, error)
 	ResourceScore(ClusterName string) (float64, error)
-	//Delete(host, path, endpoint string)             // Remove an endpoint to our registry
-	//Failure(host, path, endpoint string, err error) // Mark an endpoint as failed.
-	//Lookup(host, path string) ([]string, error)     // Return the endpoint list for the given service name/version
 }
 
 type DefaultClusterInfo map[string]map[string]string
 
 
 func (c DefaultClusterInfo) Lookup(cluster string) (bool, error) {
-	fmt.Println("Cluster Lookup")
+	fmt.Println("----Cluster Lookup----")
 	lock.RLock()
 	_, ok := c[cluster]
 	lock.RUnlock()
@@ -59,7 +38,7 @@ func (c DefaultClusterInfo) Lookup(cluster string) (bool, error) {
 }
 
 func (c DefaultClusterInfo) IngressIP(ClusterName string) (string, error) {
-	fmt.Println("IngressIP")
+	fmt.Println("----IngressIP----")
 	lock.RLock()
 	cluster, ok := c[ClusterName]
 	lock.RUnlock()
@@ -72,7 +51,7 @@ func (c DefaultClusterInfo) IngressIP(ClusterName string) (string, error) {
 
 
 func (c DefaultClusterInfo) Longitude(ClusterName string) (float64, error) {
-	fmt.Println("Longitude")
+	fmt.Println("----Longitude----")
 	lock.RLock()
 	cluster, ok := c[ClusterName]
 	lock.RUnlock()
@@ -84,7 +63,7 @@ func (c DefaultClusterInfo) Longitude(ClusterName string) (float64, error) {
 }
 
 func (c DefaultClusterInfo) Latitude(ClusterName string) (float64, error) {
-	fmt.Println("Latitude")
+	fmt.Println("----Latitude----")
 	lock.RLock()
 	cluster, ok := c[ClusterName]
 	lock.RUnlock()
@@ -97,7 +76,7 @@ func (c DefaultClusterInfo) Latitude(ClusterName string) (float64, error) {
 
 
 func (c DefaultClusterInfo) Country(ClusterName string) (string, error) {
-	fmt.Println("Country")
+	fmt.Println("----Country----")
 	lock.RLock()
 	cluster, ok := c[ClusterName]
 	lock.RUnlock()
@@ -110,7 +89,7 @@ func (c DefaultClusterInfo) Country(ClusterName string) (string, error) {
 
 
 func (c DefaultClusterInfo) Continent(ClusterName string) (string, error) {
-	fmt.Println("Continent")
+	fmt.Println("----Continent----")
 	lock.RLock()
 	cluster, ok := c[ClusterName]
 	lock.RUnlock()
@@ -123,7 +102,7 @@ func (c DefaultClusterInfo) Continent(ClusterName string) (string, error) {
 
 
 func (c DefaultClusterInfo) ResourceScore(ClusterName string) (float64, error) {
-	fmt.Println("ResourceScore")
+	fmt.Println("----ResourceScore----")
 	lock.RLock()
 	cluster, ok := c[ClusterName]
 	lock.RUnlock()
@@ -135,7 +114,7 @@ func (c DefaultClusterInfo) ResourceScore(ClusterName string) (float64, error) {
 }
 
 func (c DefaultClusterInfo) Add(ClusterName, Latitude, Longitude, IngressIP, Country, Continent, ResourceScore string) {
-	fmt.Println("Cluster Add")
+	fmt.Println("----Cluster Add----")
 	lock.Lock()
 	defer lock.Unlock()
 
