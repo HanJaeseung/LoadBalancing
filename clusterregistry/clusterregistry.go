@@ -14,7 +14,7 @@ var (
 )
 
 type Registry interface {
-	Add(ClusterName , Latitude, Longitude, IngressIP, Country, Continent, ResourceScore string)                // Add an endpoint to our registry
+	Add(ClusterName , Latitude, Longitude, IngressIP, Country, Continent, ResourceScore string)       
 	Longitude(ClusterName string) (float64, error)
 	Latitude(ClusterName string) (float64, error)
 	IngressIP(ClusterName string) (string, error)
