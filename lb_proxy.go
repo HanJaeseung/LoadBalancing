@@ -1,7 +1,3 @@
-// Package goproxy is a LoadBalancer based on httputil.ReverseProxy.
-//
-// ExtractNameVersion and LoadBalance can be overridden in order to customize
-// the behavior.
 package lb_proxy
 
 import (
@@ -33,10 +29,8 @@ var ExtractIP = extractIP
 
 
 func extractPath(target *url.URL) (out_path string, err error) {
-	fmt.Println("extractPath")
+	fmt.Println("----Extract Path----")
 	path := target.Path
-	fmt.Println(target)
-	fmt.Println(path)
 	if len(path) > 1 && path[0] == '/' {
 		path = path[1:]
 	}
@@ -48,16 +42,15 @@ func extractPath(target *url.URL) (out_path string, err error) {
 }
 
 func extractIP(target string) (out_ip string, err error) {
-	fmt.Println("Extract IP")
+	fmt.Println("----Extract IP----")
 	tmp := strings.Split(target, ":")
 	ip, _ := tmp[0], tmp[1]
-	fmt.Println(ip)
-
 	return ip, nil
 }
 
 
 func extractGeo(cip string) (string, float64, float64){
+	fmt.Println("----Extract Geo----")
 	db, err := geoip2.Open("GeoLite2-City.mmdb")
 	if err != nil {
 		log.Fatal(err)
@@ -84,6 +77,7 @@ func extractGeo(cip string) (string, float64, float64){
 
 
 func calcDistance(tlat, tlon, clat, clon float64) float64 {
+	fmt.Println("----Calc Distance----")
 	ip := haversine.Coord{Lat: tlat, Lon: tlon}
 	cluster := haversine.Coord{Lat: clat, Lon: clon}
 	mi, km := haversine.Distance(ip, cluster)
@@ -93,6 +87,7 @@ func calcDistance(tlat, tlon, clat, clon float64) float64 {
 
 
 func distanceScore(clusters []string, tcountry string, tlat, tlon float64, creg clusterregistry.Registry) map[string]float64 {
+	fmt.Println("----Distance Score----")
 	score := map[string]float64{}
 
 	var policyDistance = []float64{10.0, 100.0, 1000.0, 1000000}
@@ -103,10 +98,10 @@ func distanceScore(clusters []string, tcountry string, tlat, tlon float64, creg 
 		clat,_ := creg.Latitude(cluster)
 		clon,_ := creg.Longitude(cluster)
 		distance := calcDistance(tlat, tlon, clat, clon)
-		fmt.Println(distance)
+
 		score[cluster] = 100.0
 		for i := range policyDistance {
-			fmt.Println(policyDistance[i])
+
 			if distance >= policyDistance[i] {
 				score[cluster] = score[cluster] - (100.0 / float64(len(policyDistance)))
 			}
@@ -117,6 +112,7 @@ func distanceScore(clusters []string, tcountry string, tlat, tlon float64, creg 
 }
 
 func resourceScore(clusters []string, creg clusterregistry.Registry) map[string]float64 {
+	fmt.Println("----Resource Score----")
 	score := map[string]float64{}
 	for _, cluster := range clusters {
 		cScore,_ := creg.ResourceScore(cluster)
@@ -126,6 +122,7 @@ func resourceScore(clusters []string, creg clusterregistry.Registry) map[string]
 }
 
 func scoring(clusters []string, tcountry string, tlat, tlon float64, creg clusterregistry.Registry) string {
+	fmt.Println("----Scoring----")
 
 	if len(clusters) == 1 {
 		endpoint,_ := creg.IngressIP(clusters[0])
@@ -154,6 +151,7 @@ func scoring(clusters []string, tcountry string, tlat, tlon float64, creg cluste
 }
 
 func selectCluster(dscore map[string]float64, rscore map[string]float64) string {
+	fmt.Println("----Select Cluster----")
 	distancePolicyWeight := 1.0
 	resourcePolicyWeight := 1.0
 	maxScore := 0.0
@@ -170,7 +168,7 @@ func selectCluster(dscore map[string]float64, rscore map[string]float64) string 
 
 
 func loadBalance(host, tip, network, servicePath string, reg ingressregistry.Registry, creg clusterregistry.Registry) (net.Conn, error) {
-	fmt.Println("LoadBalance")
+	fmt.Println("----LoadBalance----")
 
 	endpoints, err := reg.Lookup(host, servicePath)
 	if err != nil {
@@ -184,8 +182,6 @@ func loadBalance(host, tip, network, servicePath string, reg ingressregistry.Reg
 		tcountry, tlat, tlon := "US", 37.5215, 126.97416
 
 		endpoint := scoring(endpoints, tcountry, tlat, tlon, creg)
-		fmt.Println(endpoint)
-
 		//if len(endpoints) == 0 {
 		//	break
 		//}
@@ -203,15 +199,14 @@ func loadBalance(host, tip, network, servicePath string, reg ingressregistry.Reg
 		//	endpoint = endpoints[2]
 		//	i = 2
 		//}
-		fmt.Println("Check 1")
+
 		conn, err := net.Dial(network, endpoint)
-		fmt.Println("Check 2")
+
 		if err != nil {
 			reg.Failure(host, servicePath, endpoint, err)
 			//endpoints = append(endpoints[:i], endpoints[i+1:]...)
 			continue
 		}
-		fmt.Println("Check 3")
 		return conn, nil
 	}
 	return nil, fmt.Errorf("No endpoint available for %s", servicePath)
@@ -219,7 +214,7 @@ func loadBalance(host, tip, network, servicePath string, reg ingressregistry.Reg
 
 
 func NewMultipleHostReverseProxy(reg ingressregistry.Registry, creg clusterregistry.Registry) http.HandlerFunc {
-	fmt.Println("NewMultipleHostReversProxy")
+	fmt.Println("----NewMultipleHostReversProxy----")
 
 	return func(w http.ResponseWriter, req *http.Request) {
 		host := req.Host
