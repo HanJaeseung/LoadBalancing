@@ -37,7 +37,6 @@ func extractPath(target *url.URL) (string, error) {
 	if path == "favicon.ico" {
 		return "", fmt.Errorf("Invalid path")
 	}
-	out_path = path
 	fmt.Println("Path : " + path)
 	return path, nil
 }
