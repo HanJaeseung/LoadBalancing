@@ -5,16 +5,14 @@ import (
 	"fmt"
 	"github.com/HanJaeseung/LoadBalancing/clusterregistry"
 	"log"
-	//"math/rand"
+	"math/rand"
 	"net"
 	"net/http"
 	"net/http/httputil"
 	"net/url"
 	"strings"
 	"time"
-
 	"github.com/HanJaeseung/LoadBalancing/ingressregistry"
-
 	"github.com/oschwald/geoip2-golang"
 	"github.com/umahmood/haversine"
 )
@@ -129,41 +127,50 @@ func scoring(clusters []string, tcountry string, tlat, tlon float64, creg cluste
 		endpoint = endpoint + ":80"
 		return endpoint
 	}
-	//minDistance := math.MaxFloat64
-	//minCluster := ""
-	//for _, cluster := range clusters {
-	//	clat,_ := creg.Latitude(cluster)
-	//	clon,_ := creg.Longitude(cluster)
-	//	distance := calcDistance(tlat, tlon, clat, clon)
-	//	if distance <= minDistance {
-	//		minDistance = distance
-	//		minCluster = cluster
-	//	}
-	//}
-	//endpoint,_ := creg.IngressIP(minCluster)
-
 	dscore := distanceScore(clusters, tcountry, tlat, tlon, creg)
 	rscore := resourceScore(clusters, creg)
-	cluster := selectCluster(dscore, rscore)
+	cluster := endpointCluster(dscore, rscore)
 	endpoint,_ := creg.IngressIP(cluster)
 	endpoint = endpoint + ":80"
 	return endpoint
 }
 
-func selectCluster(dscore map[string]float64, rscore map[string]float64) string {
+func endpointCluster(dscore map[string]float64, rscore map[string]float64) string {
 	fmt.Println("----Select Cluster----")
 	distancePolicyWeight := 1.0
 	resourcePolicyWeight := 1.0
-	maxScore := 0.0
-	maxCluster := ""
+	//maxScore := 0.0
+	//maxCluster := ""
+	totalScore := 0.0
+	endpoint := ""
+
+
+	sumScore := map[string]float64{}
 	for cluster,_ := range dscore {
-		sumScore := (dscore[cluster] * distancePolicyWeight) + (rscore[cluster] * resourcePolicyWeight)
-		if maxScore <= sumScore {
-			maxScore = sumScore
-			maxCluster = cluster
+		sumScore[cluster] = (dscore[cluster] * distancePolicyWeight) + (rscore[cluster] * resourcePolicyWeight)
+		totalScore = totalScore + sumScore[cluster]
+	}
+	rand.Seed(time.Now().UnixNano())
+	n := rand.Float64()
+	checkScore := 0.0
+	for cluster,_ := range sumScore {
+		checkScore = checkScore + (sumScore[cluster] / totalScore)
+		if n <= checkScore {
+			endpoint = cluster
+			return endpoint
 		}
 	}
-	return maxCluster
+
+	//for cluster,_ := range dscore {
+	//	sumScore := (dscore[cluster] * distancePolicyWeight) + (rscore[cluster] * resourcePolicyWeight)
+	//	if maxScore <= sumScore {
+	//		maxScore = sumScore
+	//		maxCluster = cluster
+	//	}
+	//}
+	fmt.Println("End Point Cluster")
+	fmt.Println(endpoint)
+	return endpoint
 }
 
 
@@ -182,24 +189,7 @@ func loadBalance(host, tip, network, servicePath string, reg ingressregistry.Reg
 		tcountry, tlat, tlon := "US", 37.5215, 126.97416
 
 		endpoint := scoring(endpoints, tcountry, tlat, tlon, creg)
-		//if len(endpoints) == 0 {
-		//	break
-		//}
-		//i := rand.Int() % len(endpoints)
-		//endpoint := endpoints[i]
-		//k := rand.Int() % 10
-		//
-		//if k >= 0 && k <= 5 {
-		//	endpoint = endpoints[0]
-		//	i = 0
-		//}else if k >= 6 && k <= 8 {
-		//	endpoint = endpoints[1]
-		//	i = 1
-		//}else {
-		//	endpoint = endpoints[2]
-		//	i = 2
-		//}
-
+		fmt.Println(endpoint)
 		conn, err := net.Dial(network, endpoint)
 
 		if err != nil {
