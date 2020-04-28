@@ -144,12 +144,12 @@ func endpointCluster(dscore map[string]float64, rscore map[string]float64) strin
 	totalScore := 0.0
 	endpoint := ""
 
-
 	sumScore := map[string]float64{}
 	for cluster,_ := range dscore {
 		sumScore[cluster] = (dscore[cluster] * distancePolicyWeight) + (rscore[cluster] * resourcePolicyWeight)
 		totalScore = totalScore + sumScore[cluster]
 	}
+
 	rand.Seed(time.Now().UnixNano())
 	n := rand.Float64()
 	checkScore := 0.0
@@ -161,6 +161,37 @@ func endpointCluster(dscore map[string]float64, rscore map[string]float64) strin
 		}
 	}
 
+
+	////print 용
+	//
+	//fmt.Println("")
+	//fmt.Println("Geo Score")
+	//fmt.Println(dscore)
+	//fmt.Println("")
+	//fmt.Println("Resource Score")
+	//fmt.Println(rscore)
+	//fmt.Println("")
+	//fmt.Println("Traffic Ratio")
+	//trafficRatio := map[string]float64{}
+	//trafficRatio["cluster1"] = 6
+	//trafficRatio["cluster2"] = 3
+	//trafficRatio["cluster3"] = 1
+	////for cluster,_ := range sumScore {
+	////	trafficRatio[cluster] = (sumScore[cluster] / totalScore) * 100
+	////}
+	//fmt.Println(trafficRatio)
+
+	//testrand := rand.Intn(100)
+	//if testrand >= 0 && testrand < 60 {
+	//	endpoint = "cluster1"
+	//}else if testrand >= 61 && testrand <90 {
+	//	endpoint = "cluster2"
+	//} else {
+	//	endpoint = "cluster3"
+	//}
+	//
+
+
 	//for cluster,_ := range dscore {
 	//	sumScore := (dscore[cluster] * distancePolicyWeight) + (rscore[cluster] * resourcePolicyWeight)
 	//	if maxScore <= sumScore {
@@ -168,6 +199,7 @@ func endpointCluster(dscore map[string]float64, rscore map[string]float64) strin
 	//		maxCluster = cluster
 	//	}
 	//}
+
 	fmt.Println("End Point Cluster")
 	fmt.Println(endpoint)
 	return endpoint
@@ -186,7 +218,7 @@ func loadBalance(host, tip, network, servicePath string, reg ingressregistry.Reg
 		//tcountry , tlat, tlon := extractGeo(tip)
 		//Window
 		//tcountry, tlat, tlon := "US", 37.751, -97.822
-		tcountry, tlat, tlon := "US", 37.5215, 126.97416
+		tcountry, tlat, tlon := "US", 37.5530, 126.9727
 
 		endpoint := scoring(endpoints, tcountry, tlat, tlon, creg)
 		fmt.Println(endpoint)
