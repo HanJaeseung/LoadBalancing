@@ -4,7 +4,9 @@ import (
 	"errors"
 	"fmt"
 	"github.com/HanJaeseung/LoadBalancing/clusterregistry"
-	"log"
+	"github.com/HanJaeseung/LoadBalancing/countryregistry"
+	"github.com/abh/geoip"
+	//"log"
 	"math/rand"
 	"net"
 	"net/http"
@@ -13,7 +15,6 @@ import (
 	"strings"
 	"time"
 	"github.com/HanJaeseung/LoadBalancing/ingressregistry"
-	"github.com/oschwald/geoip2-golang"
 	"github.com/umahmood/haversine"
 )
 
@@ -47,95 +48,186 @@ func extractIP(target string) (string, error) {
 	return ip, nil
 }
 
-
-func extractGeo(cip string) (string, float64, float64){
-	fmt.Println("----Extract Geo----")
-	db, err := geoip2.Open("GeoLite2-City.mmdb")
+//ip로부터 국가 추출
+func extractCountry(tip string) string {
+	file := "/usr/share/GeoIP/GeoIP.dat"
+	gi, err := geoip.Open(file)
 	if err != nil {
-		log.Fatal(err)
+		fmt.Printf("Could not open GeoIP database\n")
 	}
-	defer db.Close()
-	// If you are using strings that may be invalid, check that ip is not nil
-	ip := net.ParseIP("8.8.8.8")
 
-	record, err := db.City(ip)
-	if err != nil {
-		log.Fatal(err)
+	if gi != nil {
+		country, netmask := gi.GetCountry("207.171.7.51")
 	}
-	fmt.Printf("Portuguese (BR) city name: %v\n", record.City.Names["pt-BR"])
-	if len(record.Subdivisions) > 0 {
-		fmt.Printf("English subdivision name: %v\n", record.Subdivisions[0].Names["en"])
-	}
-	fmt.Printf("Russian country name: %v\n", record.Country.Names["ru"])
-	//fmt.Printf("ISO country code: %v\n", record.Country.IsoCode)
-	//fmt.Printf("Time zone: %v\n", record.Location.TimeZone)
 
-	fmt.Printf("Coordinates: %v, %v\n", record.Location.Latitude, record.Location.Longitude)
-	return record.Country.IsoCode, record.Location.Latitude, record.Location.Longitude
+	fmt.Println(country)
+	return "KR"
 }
 
+//Traffic 의 ip로부터 국가와 대륙 추출
+func extractGeo(tip string, countryreg countryregistry.Registry) (string, string){
+	//country := ""
+	//continent := ""
 
-func calcDistance(tlat, tlon, clat, clon float64) float64 {
-	fmt.Println("----Calc Distance----")
-	ip := haversine.Coord{Lat: tlat, Lon: tlon}
-	cluster := haversine.Coord{Lat: clat, Lon: clon}
-	mi, km := haversine.Distance(ip, cluster)
-	fmt.Println("Miles: ", mi, "Kilometers: ", km)
-	return km
-}
-
-
-func distanceScore(clusters []string, tcountry string, tlat, tlon float64, creg clusterregistry.Registry) map[string]float64 {
-	fmt.Println("----Distance Score----")
-	score := map[string]float64{}
-
-	var policyDistance = []float64{10.0, 100.0, 1000.0, 1000000}
-
-	for _,cluster := range clusters {
-		//ccountry,_ := creg.Country(cluster)
-		//ccontinent,_ := creg.Continent(cluster)
-		clat,_ := creg.Latitude(cluster)
-		clon,_ := creg.Longitude(cluster)
-		distance := calcDistance(tlat, tlon, clat, clon)
-
-		score[cluster] = 100.0
-		for i := range policyDistance {
-
-			if distance >= policyDistance[i] {
-				score[cluster] = score[cluster] - (100.0 / float64(len(policyDistance)))
-			}
-		}
-	}
-	return score
+	country := extractCountry(tip)
+	continent,_ := countryreg.Lookup(country)
+	return country, continent
 }
 
 func resourceScore(clusters []string, creg clusterregistry.Registry) map[string]float64 {
-	fmt.Println("----Resource Score----")
+	fmt.Println("*****Resource Score*****")
 	score := map[string]float64{}
 	for _, cluster := range clusters {
 		cScore,_ := creg.ResourceScore(cluster)
 		score[cluster] = cScore
 	}
+	fmt.Println(score)
 	return score
 }
 
-func scoring(clusters []string, tcountry string, tlat, tlon float64, creg clusterregistry.Registry) string {
-	fmt.Println("----Scoring----")
 
+func geoScore(clusters []string, tcountry, tcontinent string, creg clusterregistry.Registry) map[string]float64 {
+	fmt.Println("*****Geo Score*****")
+
+	score := map[string]float64{}
+	for _, cluster := range clusters {
+		ccountry,_ := creg.Country(cluster)
+		ccontinent,_ := creg.Continent(cluster)
+		if tcountry == ccountry {
+			score[cluster] = 100.0
+		} else if tcontinent == ccontinent {
+			score[cluster] = 50.0
+ 		} else {
+ 			score[cluster] = 0.0
+		}
+	}
+	fmt.Println(score)
+	return score
+}
+
+func HopScore(clusters []string, creg clusterregistry.Registry) map[string]float64 {
+	fmt.Println("*****Hop Score*****")
+	score := map[string]float64{}
+	for _, cluster := range clusters {
+		hScore,_ := creg.HopScore(cluster)
+		score[cluster] = hScore
+	}
+	fmt.Println(score)
+	return score
+}
+
+//스코어링 진행
+func scoring(clusters []string, tcountry, tcontinent string, creg clusterregistry.Registry) string {
+	fmt.Println("*****Scoring*****")
 	if len(clusters) == 1 {
 		endpoint,_ := creg.IngressIP(clusters[0])
 		endpoint = endpoint + ":80"
 		return endpoint
 	}
-	dscore := distanceScore(clusters, tcountry, tlat, tlon, creg)
+	gscore := geoScore(clusters, tcountry, tcontinent, creg)
 	rscore := resourceScore(clusters, creg)
-	cluster := endpointCluster(dscore, rscore)
+	hscore := HopScore(clusters, creg)
+	cluster := endpointCluster(gscore, rscore, hscore)
 	endpoint,_ := creg.IngressIP(cluster)
 	endpoint = endpoint + ":80"
+	fmt.Println(endpoint)
 	return endpoint
 }
 
-func endpointCluster(dscore map[string]float64, rscore map[string]float64) string {
+//geo score, resource score, hop score를 합쳐서 비율 계산
+//난수를 생성하여 비율에 속하는 클러스터를 엔드포인트로 선정
+func endpointCluster(gscore map[string]float64, rscore map[string]float64, hscore map[string]float64) string {
+	fmt.Println("*****Endpoint Cluster*****")
+	geoPolicyWeight := 1.0
+	resourcePolicyWeight := 1.0
+	hopPolicyWeight := 1.0
+	totalScore := 0.0
+	endpoint := ""
+
+	sumScore := map[string]float64{}
+	for cluster,_ := range gscore {
+		sumScore[cluster] = (gscore[cluster] * geoPolicyWeight) + (rscore[cluster] * resourcePolicyWeight)  + (hscore[cluster] * hopPolicyWeight)
+		totalScore = totalScore + sumScore[cluster]
+	}
+
+	rand.Seed(time.Now().UnixNano())
+	n := rand.Float64()
+	checkScore := 0.0
+	for cluster,_ := range sumScore {
+		checkScore = checkScore + (sumScore[cluster] / totalScore)
+		if n <= checkScore {
+			endpoint = cluster
+			return endpoint
+		}
+	}
+	fmt.Println("End Point Cluster's Ingress IP")
+	fmt.Println(endpoint)
+	return endpoint
+}
+
+
+func loadBalance(host, tip, network, servicePath string, reg ingressregistry.Registry, creg clusterregistry.Registry, countryreg countryregistry.Registry) (net.Conn, error) {
+	fmt.Println("*****LoadBalance*****")
+
+
+	endpoints, err := reg.Lookup(host, servicePath)
+	if err != nil {
+		return nil, err
+	}
+	for {
+		//Traffic IP로부터 국가,대륙 추출
+		tcountry, tcontinent := extractGeo(tip, countryreg)
+		//스코어링 진행하여 엔드포인트 결정
+		endpoint := scoring(endpoints, tcountry, tcontinent, creg)
+		fmt.Println(endpoint)
+		conn, err := net.Dial(network, endpoint)
+
+		if err != nil {
+			reg.Failure(host, servicePath, endpoint, err)
+			continue
+		}
+		return conn, nil
+	}
+	return nil, fmt.Errorf("No endpoint available for %s", servicePath)
+}
+
+
+func NewMultipleHostReverseProxy(reg ingressregistry.Registry, creg clusterregistry.Registry, countryreg countryregistry.Registry) http.HandlerFunc {
+	fmt.Println("*****NewMultipleHostReversProxy*****")
+
+	return func(w http.ResponseWriter, req *http.Request) {
+		host := req.Host
+		ip, _ := ExtractIP(req.RemoteAddr)
+		path, err := ExtractPath(req.URL)
+
+		if err != nil {
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+			return
+		}
+		(&httputil.ReverseProxy{
+			Director: func(req *http.Request) {
+				req.URL.Scheme = "http"
+				req.URL.Host = path
+			},
+			Transport: &http.Transport{
+				Proxy: http.ProxyFromEnvironment,
+				Dial: func(network, addr string) (net.Conn, error) {
+					addr = strings.Split(addr, ":")[0]
+					return LoadBalance(host, ip,  network, addr, reg, creg, countryreg)
+				},
+				TLSHandshakeTimeout: 10 * time.Second,
+			},
+		}).ServeHTTP(w, req)
+	}
+}
+
+
+//backup code
+//*********************************************************************************************
+//*********************************************************************************************
+
+
+func backup_endpointCluster(dscore map[string]float64, rscore map[string]float64) string {
 	fmt.Println("----Select Cluster----")
 	distancePolicyWeight := 1.0
 	resourcePolicyWeight := 1.0
@@ -206,61 +298,78 @@ func endpointCluster(dscore map[string]float64, rscore map[string]float64) strin
 }
 
 
-func loadBalance(host, tip, network, servicePath string, reg ingressregistry.Registry, creg clusterregistry.Registry) (net.Conn, error) {
-	fmt.Println("----LoadBalance----")
+func backup_scoring(clusters []string, tcountry string, tlat, tlon float64, creg clusterregistry.Registry) string {
+	fmt.Println("----Scoring----")
 
-	endpoints, err := reg.Lookup(host, servicePath)
-	if err != nil {
-		return nil, err
+	if len(clusters) == 1 {
+		endpoint,_ := creg.IngressIP(clusters[0])
+		endpoint = endpoint + ":80"
+		return endpoint
 	}
-	for {
-		//Lunux
-		//tcountry , tlat, tlon := extractGeo(tip)
-		//Window
-		//tcountry, tlat, tlon := "US", 37.751, -97.822
-		tcountry, tlat, tlon := "US", 37.5530, 126.9727
-
-		endpoint := scoring(endpoints, tcountry, tlat, tlon, creg)
-		fmt.Println(endpoint)
-		conn, err := net.Dial(network, endpoint)
-
-		if err != nil {
-			reg.Failure(host, servicePath, endpoint, err)
-			//endpoints = append(endpoints[:i], endpoints[i+1:]...)
-			continue
-		}
-		return conn, nil
-	}
-	return nil, fmt.Errorf("No endpoint available for %s", servicePath)
+	dscore := distanceScore(clusters, tcountry, tlat, tlon, creg)
+	rscore := resourceScore(clusters, creg)
+	cluster := backup_endpointCluster(dscore, rscore)
+	endpoint,_ := creg.IngressIP(cluster)
+	endpoint = endpoint + ":80"
+	return endpoint
 }
 
+func calcDistance(tlat, tlon, clat, clon float64) float64 {
+	fmt.Println("----Calc Distance----")
+	ip := haversine.Coord{Lat: tlat, Lon: tlon}
+	cluster := haversine.Coord{Lat: clat, Lon: clon}
+	mi, km := haversine.Distance(ip, cluster)
+	fmt.Println("Miles: ", mi, "Kilometers: ", km)
+	return km
+}
 
-func NewMultipleHostReverseProxy(reg ingressregistry.Registry, creg clusterregistry.Registry) http.HandlerFunc {
-	fmt.Println("----NewMultipleHostReversProxy----")
+//func extractGeo(cip string) (string, float64, float64){
+//	fmt.Println("----Extract Geo----")
+//	db, err := geoip2.Open("GeoLite2-City.mmdb")
+//	if err != nil {
+//		log.Fatal(err)
+//	}
+//	defer db.Close()
+//	// If you are using strings that may be invalid, check that ip is not nil
+//	ip := net.ParseIP("8.8.8.8")
+//
+//	record, err := db.City(ip)
+//	if err != nil {
+//		log.Fatal(err)
+//	}
+//	fmt.Printf("Portuguese (BR) city name: %v\n", record.City.Names["pt-BR"])
+//	if len(record.Subdivisions) > 0 {
+//		fmt.Printf("English subdivision name: %v\n", record.Subdivisions[0].Names["en"])
+//	}
+//	fmt.Printf("Russian country name: %v\n", record.Country.Names["ru"])
+//	//fmt.Printf("ISO country code: %v\n", record.Country.IsoCode)
+//	//fmt.Printf("Time zone: %v\n", record.Location.TimeZone)
+//
+//	fmt.Printf("Coordinates: %v, %v\n", record.Location.Latitude, record.Location.Longitude)
+//	return record.Country.IsoCode, record.Location.Latitude, record.Location.Longitude
+//}
 
-	return func(w http.ResponseWriter, req *http.Request) {
-		host := req.Host
-		ip, _ := ExtractIP(req.RemoteAddr)
-		path, err := ExtractPath(req.URL)
 
-		if err != nil {
-			http.Error(w, err.Error(), http.StatusInternalServerError)
-			return
+func distanceScore(clusters []string, tcountry string, tlat, tlon float64, creg clusterregistry.Registry) map[string]float64 {
+	fmt.Println("----Distance Score----")
+	score := map[string]float64{}
+
+	var policyDistance = []float64{10.0, 100.0, 1000.0, 1000000}
+
+	for _,cluster := range clusters {
+		//ccountry,_ := creg.Country(cluster)
+		//ccontinent,_ := creg.Continent(cluster)
+		clat,_ := creg.Latitude(cluster)
+		clon,_ := creg.Longitude(cluster)
+		distance := calcDistance(tlat, tlon, clat, clon)
+
+		score[cluster] = 100.0
+		for i := range policyDistance {
+
+			if distance >= policyDistance[i] {
+				score[cluster] = score[cluster] - (100.0 / float64(len(policyDistance)))
+			}
 		}
-
-		(&httputil.ReverseProxy{
-			Director: func(req *http.Request) {
-				req.URL.Scheme = "http"
-				req.URL.Host = path
-			},
-			Transport: &http.Transport{
-				Proxy: http.ProxyFromEnvironment,
-				Dial: func(network, addr string) (net.Conn, error) {
-					addr = strings.Split(addr, ":")[0]
-					return LoadBalance(host, ip,  network, addr, reg, creg)
-				},
-				TLSHandshakeTimeout: 10 * time.Second,
-			},
-		}).ServeHTTP(w, req)
 	}
+	return score
 }
