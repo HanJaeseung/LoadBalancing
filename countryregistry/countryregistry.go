@@ -1,42 +1,38 @@
 package countryregistry
 
-var country = map[string]string{
-	"KR" : "Asia",
-	"JP" : "Asia",
-	"IR" : "Asia",
-	"IL" : "Asia",
-	"LA" : "Asia",
-	"AF" : "Asia",
-	"AM" : "Asia",
-	"AI" : "North America",
-	"AG" : "North America",
-	"BB" : "North America",
-	"VG" : "North America",
-	"KY" : "North America",
-	"AL" : "Europe",
-	"AD" : "Europe",
-	"CZ" : "Europe",
-	"DK" : "Europe",
-	"FO" : "Europe",
-	"DZ" : "Africa",
-	"AO" : "Africa",
-	"BW" : "Africa",
-	"BF" : "Africa",
-	"CD" : "Africa",
-	"EG" : "Africa",
-	"AR" : "South America",
-	"BO" : "South America",
-	"BR" : "South America",
-	"CL" : "South America",
-	"GY" : "South America",
-	"PY" : "South America",
-	"AS" : "Australia",
-	"AU" : "Australia",
-	"NZ" : "Australia",
-	"CK" : "Australia",
-	"AQ" : "Antarctica",
+
+import (
+	"errors"
+	"fmt"
+	//"strconv"
+	"sync"
+)
+
+
+var lock sync.RWMutex
+
+// Common errors.
+var (
+	ErrClusterNotFound = errors.New("Cluster not found")
+)
+
+// for a given service name / version pair.
+type Registry interface {
+	Lookup(country string) (string, error)
 }
 
-func Continent() map[string]string {
-	return country
+type DefaultCountryInfo map[string]string
+
+func (c DefaultCountryInfo) Lookup(country string) (string, error) {
+	fmt.Println("----Country Lookup----")
+	lock.RLock()
+	continent, ok := c[country]
+	lock.RUnlock()
+	if !ok {
+		return "", ErrClusterNotFound
+	}
+	return continent, nil
 }
+
+
+
