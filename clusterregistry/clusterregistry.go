@@ -7,20 +7,43 @@ import (
 	"sync"
 )
 
+
+
+// DefaultClusterInfo is a basic registry using the following format:
+//{
+//	"cluster1" : {
+//		"Latitude" : "10.32" ,
+//		"Longitude" : " 20.44",
+//		"IngressIP" : "10.0.3.203",
+//		"Country" : "US",
+//		"Continent" : "Asia",
+//		"ResourceScore" : "80",
+//		"HopScore" : "60",
+//	},
+//}
+
+
+
 var lock sync.RWMutex
 
+// Common errors.
 var (
 	ErrClusterNotFound = errors.New("Cluster not found")
 )
 
+// for a given service name / version pair.
 type Registry interface {
-	Add(ClusterName , Latitude, Longitude, IngressIP, Country, Continent, ResourceScore string)       
+	Add(ClusterName , Latitude, Longitude, IngressIP, Country, Continent, ResourceScore string)                // Add an endpoint to our registry
 	Longitude(ClusterName string) (float64, error)
 	Latitude(ClusterName string) (float64, error)
 	IngressIP(ClusterName string) (string, error)
 	Country(ClusterName string) (string, error)
 	Continent(ClusterName string) (string, error)
 	ResourceScore(ClusterName string) (float64, error)
+	HopScore(ClusterName string) (float64, error)
+	//Delete(host, path, endpoint string)             // Remove an endpoint to our registry
+	//Failure(host, path, endpoint string, err error) // Mark an endpoint as failed.
+	//Lookup(host, path string) ([]string, error)     // Return the endpoint list for the given service name/version
 }
 
 type DefaultClusterInfo map[string]map[string]string
@@ -112,6 +135,19 @@ func (c DefaultClusterInfo) ResourceScore(ClusterName string) (float64, error) {
 	resourceScore,_ := strconv.ParseFloat(cluster["ResourceScore"], 64)
 	return resourceScore, nil
 }
+
+func (c DefaultClusterInfo) HopScore(ClusterName string) (float64, error) {
+	fmt.Println("----HopScore----")
+	lock.RLock()
+	cluster, ok := c[ClusterName]
+	lock.RUnlock()
+	if !ok {
+		return 0, ErrClusterNotFound
+	}
+	resourceScore,_ := strconv.ParseFloat(cluster["HopScore"], 64)
+	return resourceScore, nil
+}
+
 
 func (c DefaultClusterInfo) Add(ClusterName, Latitude, Longitude, IngressIP, Country, Continent, ResourceScore string) {
 	fmt.Println("----Cluster Add----")
