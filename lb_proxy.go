@@ -3,6 +3,7 @@ package lb_proxy
 import (
 	"errors"
 	"fmt"
+	"log"
 	"github.com/HanJaeseung/LoadBalancing/clusterregistry"
 	"github.com/HanJaeseung/LoadBalancing/countryregistry"
 	//"github.com/abh/geoip"
