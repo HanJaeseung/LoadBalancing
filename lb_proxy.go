@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"github.com/HanJaeseung/LoadBalancing/clusterregistry"
 	"github.com/HanJaeseung/LoadBalancing/countryregistry"
-	"github.com/abh/geoip"
+	//"github.com/abh/geoip"
 	//"log"
 	"math/rand"
 	"net"
@@ -15,6 +15,7 @@ import (
 	"strings"
 	"time"
 	"github.com/HanJaeseung/LoadBalancing/ingressregistry"
+	"github.com/oschwald/geoip2-golang"
 	"github.com/umahmood/haversine"
 )
 
@@ -49,20 +50,32 @@ func extractIP(target string) (string, error) {
 }
 
 //ip로부터 국가 추출
-func extractCountry(tip string) string {
-	file := "/usr/share/GeoIP/GeoIP.dat"
-	gi, err := geoip.Open(file)
+//func extractCountry(tip string) string {
+//	fmt.Println(country)
+//	return "KR"
+//}
+
+func extractCountry(cip string) string{
+	fmt.Println("*****Extract Country*****")
+	db, err := geoip2.Open("GeoLite2-City.mmdb")
 	if err != nil {
-		fmt.Printf("Could not open GeoIP database\n")
+		log.Fatal(err)
+	}
+	defer db.Close()
+	// If you are using strings that may be invalid, check that ip is not nil
+	ip := net.ParseIP("8.8.8.8")
+
+	record, err := db.City(ip)
+	if err != nil {
+		log.Fatal(err)
 	}
 
-	if gi != nil {
-		country, netmask := gi.GetCountry("207.171.7.51")
-	}
+	fmt.Printf("ISO country code: %v\n", record.Country.IsoCode)
 
-	fmt.Println(country)
-	return "KR"
+	return record.Country.IsoCode
 }
+
+
 
 //Traffic 의 ip로부터 국가와 대륙 추출
 func extractGeo(tip string, countryreg countryregistry.Registry) (string, string){
