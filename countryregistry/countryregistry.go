@@ -34,5 +34,3 @@ func (c DefaultCountryInfo) Lookup(country string) (string, error) {
 	return continent, nil
 }
 
-
-
