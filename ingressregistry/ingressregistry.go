@@ -82,12 +82,12 @@ func (r DefaultRegistry) Delete(host, path, endpoint string) {
 	if !ok {
 		return
 	}
+
 begin:
 	for i, svc := range service[path] {
 		if svc == endpoint {
 			copy(service[path][i:], service[path][i+1:])
-			service[path][len(service)-1] = ""
-			service[path] = service[path][:len(service)-1]
+			service[path] = service[path][:len(service[path])-1]
 			goto begin
 		}
 	}
