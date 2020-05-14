@@ -33,7 +33,7 @@ var (
 
 // for a given service name / version pair.
 type Registry interface {
-	Add(ClusterName , Latitude, Longitude, IngressIP, Country, Continent, ResourceScore string)                // Add an endpoint to our registry
+	Add(ClusterName , Latitude, Longitude, IngressIP, Country, Continent, ResourceScore, HopScore string)                // Add an endpoint to our registry
 	Longitude(ClusterName string) (float64, error)
 	Latitude(ClusterName string) (float64, error)
 	IngressIP(ClusterName string) (string, error)
@@ -149,7 +149,7 @@ func (c DefaultClusterInfo) HopScore(ClusterName string) (float64, error) {
 }
 
 
-func (c DefaultClusterInfo) Add(ClusterName, Latitude, Longitude, IngressIP, Country, Continent, ResourceScore string) {
+func (c DefaultClusterInfo) Add(ClusterName, Latitude, Longitude, IngressIP, Country, Continent, ResourceScore, HopScore string) {
 	fmt.Println("----Cluster Add----")
 	lock.Lock()
 	defer lock.Unlock()
@@ -165,6 +165,7 @@ func (c DefaultClusterInfo) Add(ClusterName, Latitude, Longitude, IngressIP, Cou
 	cluster["Country"] = Country
 	cluster["Continent"] = Continent
 	cluster["ResourceScore"] = ResourceScore
+	cluster["HopScore"] = HopScore
 }
 
 
