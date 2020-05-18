@@ -22,6 +22,7 @@ type Registry interface {
 	Delete(host, path, endpoint string)             // Remove an endpoint to our registry
 	Failure(host, path, endpoint string, err error) // Mark an endpoint as failed.
 	Lookup(host, path string) ([]string, error)     // Return the endpoint list for the given service name/version
+	IngressDelete(host, path string)
 }
 
 // DefaultRegistry is a basic registry using the following format:
@@ -37,7 +38,6 @@ type Registry interface {
 //type DefaultRegistry map[string]map[string]map[string]string
 type DefaultRegistry map[string]map[string][]string
 
-
 // Lookup return the endpoint list for the given service name/version.
 
 func (r DefaultRegistry) Lookup(host string, path string) ([]string, error) {
@@ -50,7 +50,6 @@ func (r DefaultRegistry) Lookup(host string, path string) ([]string, error) {
 	}
 	return targets, nil
 }
-
 
 func (r DefaultRegistry) Failure(host, path, endpoint string, err error) {
 	// Would be used to remove an endpoint from the rotation, log the failure, etc.
@@ -70,7 +69,6 @@ func (r DefaultRegistry) Add(host, path, endpoint string) {
 	}
 	service[path] = append(service[path], endpoint)
 }
-
 
 // Delete removes the given endpoit for the service name/version.
 func (r DefaultRegistry) Delete(host, path, endpoint string) {
@@ -92,3 +90,17 @@ begin:
 		}
 	}
 }
+
+func (r DefaultRegistry) IngressDelete(host, path string) {
+	fmt.Println("*****Ingres  Delete*****")
+	lock.Lock()
+	defer lock.Unlock()
+
+	service, ok := r[host]
+	if !ok {
+		return
+	}
+	delete(service, path)
+}
+
+
